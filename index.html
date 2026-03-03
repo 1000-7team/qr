@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR и штрих-коды (офлайн)</title>
-    <!-- Минимальные стили -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -209,13 +208,8 @@
         let currentImageData = null;
         let isOffline = false;
         
-        // НАСТРОЙКА UPUP - ДВЕ ВЕРСИИ: ДЛЯ ОНЛАЙН И ОФЛАЙН
-        if ('serviceWorker' in navigator) {
-            // Сохраняем обе версии
-            const onlineHTML = document.documentElement.outerHTML;
-            
-            // Упрощенная версия для офлайн
-            const offlineHTML = `<!DOCTYPE html>
+        // УПРОЩЕННАЯ ОФЛАЙН ВЕРСИЯ (отдельный HTML)
+        const offlineHTML = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -239,18 +233,21 @@
             border-radius: 15px;
             padding: 25px;
             text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         h2 {
             color: #e74c3c;
             margin-bottom: 20px;
+            font-size: 22px;
         }
         input, select, button {
             width: 100%;
             padding: 12px;
-            margin: 10px 0;
+            margin: 8px 0;
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
+            box-sizing: border-box;
         }
         button {
             background: #4a90e2;
@@ -259,15 +256,29 @@
             font-weight: bold;
             cursor: pointer;
         }
+        button:hover {
+            background: #357abd;
+        }
         .result {
             margin-top: 20px;
             padding: 20px;
             background: #f8f9fa;
             border-radius: 8px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         canvas {
             max-width: 100%;
             background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .download-btn {
+            background: #27ae60;
+            margin-top: 15px;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -283,7 +294,7 @@
         </select>
         <button onclick="generateOfflineCode()">Создать код</button>
         <div class="result" id="offlineResult"></div>
-        <button id="offlineDownload" style="display:none;" onclick="downloadOffline()">💾 Скачать</button>
+        <button class="download-btn" id="offlineDownload" style="display:none;" onclick="downloadOffline()">💾 Скачать</button>
     </div>
 
     <script>
@@ -306,22 +317,31 @@
                 canvas.id = 'offlineCanvas';
                 resultDiv.appendChild(canvas);
                 
-                JsBarcode('#offlineCanvas', text, {
-                    format: 'CODE128',
-                    width: 2,
-                    height: 80,
-                    displayValue: true
-                });
-                
-                offlineImage = canvas.toDataURL('image/png');
+                try {
+                    JsBarcode('#offlineCanvas', text, {
+                        format: 'CODE128',
+                        width: 2,
+                        height: 80,
+                        displayValue: true,
+                        fontSize: 16
+                    });
+                    offlineImage = document.getElementById('offlineCanvas').toDataURL('image/png');
+                } catch(e) {
+                    alert('Ошибка: ' + e.message);
+                }
             } else {
                 const canvas = document.createElement('canvas');
                 canvas.id = 'offlineCanvas';
                 resultDiv.appendChild(canvas);
                 
-                QRCode.toCanvas(canvas, text, { width: 200 }, function(err) {
-                    if (!err) {
-                        offlineImage = canvas.toDataURL('image/png');
+                QRCode.toCanvas(document.getElementById('offlineCanvas'), text, { 
+                    width: 200,
+                    margin: 1
+                }, function(err) {
+                    if (err) {
+                        alert('Ошибка: ' + err);
+                    } else {
+                        offlineImage = document.getElementById('offlineCanvas').toDataURL('image/png');
                     }
                 });
             }
@@ -339,14 +359,21 @@
     </script>
 </body>
 </html>`;
+        
+        // НАСТРОЙКА UPUP
+        if ('serviceWorker' in navigator) {
+            // Получаем текущий HTML
+            const onlineHTML = document.documentElement.outerHTML;
             
             // Запускаем UpUp с двумя версиями
             UpUp.start({
+                'content-url': 'offline.html',  // URL для офлайн версии
                 'content': onlineHTML,           // Полная версия для онлайн
                 'offline-content': offlineHTML,   // Упрощенная для офлайн
                 'assets': [
                     'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js',
-                    'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js'
+                    'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js',
+                    'https://cdn.jsdelivr.net/npm/upup@1.1.0/dist/upup.min.js'
                 ]
             });
         }
@@ -360,6 +387,7 @@
                 document.getElementById('offlineBanner').style.display = 'none';
                 document.getElementById('onlineVersion').style.display = 'block';
                 document.getElementById('offlineVersion').style.display = 'none';
+                document.getElementById('onlineBanner').textContent = '🌐 Есть интернет - полная версия';
             } else {
                 // Нет интернета - показываем упрощенную
                 isOffline = true;
