@@ -3,36 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Офлайн QR и штрих-коды</title>
+    <title>QR и штрих-коды (офлайн)</title>
+    <!-- Минимальные стили -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            background: #4a90e2;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #2c3e50;
             padding: 15px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .container {
-            max-width: 600px;
-            margin: 0 auto;
+            max-width: 500px;
+            width: 100%;
             background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
-        h1 { text-align: center; margin-bottom: 20px; font-size: 24px; color: #333; }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4a90e2;
+            padding-bottom: 10px;
+        }
         .tabs {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         .tab {
             flex: 1;
             padding: 12px;
-            background: #f0f0f0;
             border: none;
-            border-radius: 8px;
-            cursor: pointer;
+            border-radius: 10px;
+            background: #ecf0f1;
             font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
             font-size: 16px;
         }
         .tab.active {
@@ -40,11 +53,11 @@
             color: white;
         }
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: #555;
             font-weight: 500;
         }
@@ -55,13 +68,9 @@
             border-radius: 8px;
             font-size: 16px;
         }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #4a90e2;
-        }
         button {
             width: 100%;
-            padding: 15px;
+            padding: 14px;
             background: #4a90e2;
             color: white;
             border: none;
@@ -75,142 +84,306 @@
             background: #357abd;
         }
         .result {
-            margin-top: 20px;
+            margin-top: 25px;
             text-align: center;
             padding: 20px;
-            background: #f9f9f9;
-            border-radius: 8px;
-            min-height: 200px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            min-height: 220px;
         }
         canvas {
             max-width: 100%;
-            border: 1px solid #ddd;
             background: white;
+            border-radius: 5px;
         }
         .download-btn {
             background: #27ae60;
-            margin-top: 15px;
         }
-        .download-btn:hover {
-            background: #219a52;
-        }
-        .offline-badge {
+        .offline-banner {
+            background: #e74c3c;
+            color: white;
             text-align: center;
-            margin-bottom: 15px;
-            padding: 8px;
-            background: #f1c40f;
-            color: #333;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             font-weight: bold;
+            font-size: 18px;
             display: none;
         }
-        .status {
+        .online-banner {
+            background: #27ae60;
+            color: white;
             text-align: center;
-            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 15px;
             font-size: 14px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 15px;
+            color: #7f8c8d;
+            font-size: 12px;
         }
     </style>
     
-    <!-- БИБЛИОТЕКИ - БЕРУТСЯ ИЗ CDN -->
+    <!-- Библиотеки -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/upup@1.1.0/dist/upup.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>QR и Штрих-коды</h1>
+        <div class="online-banner" id="onlineBanner">🌐 Есть интернет - загружаем полную версию</div>
+        <div class="offline-banner" id="offlineBanner">📴 ОФЛАЙН РЕЖИМ - упрощенная версия</div>
         
-        <div class="offline-badge" id="offlineBadge">
-            🔥 ОФЛАЙН РЕЖИМ - РАБОТАЕТ БЕЗ ИНТЕРНЕТА
-        </div>
-        
-        <div class="status" id="status">
-            ⚡ Загрузка...
-        </div>
+        <h1>📱 Генератор кодов</h1>
         
         <div class="tabs">
-            <button class="tab active" onclick="showTab('barcode')">📊 ШТРИХ-КОД</button>
-            <button class="tab" onclick="showTab('qr')">🔲 QR-КОД</button>
+            <button class="tab active" onclick="switchTab('barcode')">📊 Штрих-код</button>
+            <button class="tab" onclick="switchTab('qr')">🔲 QR-код</button>
         </div>
         
-        <!-- ШТРИХ-КОД -->
-        <div id="barcodeSection">
+        <!-- ОСНОВНАЯ ВЕРСИЯ (для онлайн) -->
+        <div id="onlineVersion">
+            <div id="barcodeSection">
+                <div class="input-group">
+                    <label>Текст для штрих-кода:</label>
+                    <input type="text" id="barcodeText" value="12345678" placeholder="Введите текст">
+                </div>
+                <div class="input-group">
+                    <label>Формат:</label>
+                    <select id="barcodeFormat">
+                        <option value="CODE128">CODE128 (любые символы)</option>
+                        <option value="EAN13">EAN-13</option>
+                        <option value="EAN8">EAN-8</option>
+                        <option value="CODE39">CODE39</option>
+                    </select>
+                </div>
+                <button onclick="generateBarcode()">Создать штрих-код</button>
+            </div>
+            
+            <div id="qrSection" style="display: none;">
+                <div class="input-group">
+                    <label>Текст или ссылка:</label>
+                    <input type="text" id="qrText" value="https://google.com" placeholder="Введите текст">
+                </div>
+                <div class="input-group">
+                    <label>Размер:</label>
+                    <input type="number" id="qrSize" value="250" min="100" max="500">
+                </div>
+                <button onclick="generateQR()">Создать QR-код</button>
+            </div>
+        </div>
+        
+        <!-- УПРОЩЕННАЯ ВЕРСИЯ (для офлайн) -->
+        <div id="offlineVersion" style="display: none;">
             <div class="input-group">
-                <label>Текст:</label>
-                <input type="text" id="barcodeText" value="12345678" placeholder="Введите текст">
+                <label>Текст для кода:</label>
+                <input type="text" id="offlineText" value="12345678" placeholder="Введите текст">
             </div>
             <div class="input-group">
-                <label>Формат:</label>
-                <select id="barcodeFormat">
-                    <option value="CODE128">CODE128</option>
-                    <option value="EAN13">EAN13</option>
-                    <option value="EAN8">EAN8</option>
-                    <option value="CODE39">CODE39</option>
+                <label>Тип кода:</label>
+                <select id="offlineType">
+                    <option value="barcode">Штрих-код</option>
+                    <option value="qr">QR-код</option>
                 </select>
             </div>
-            <button onclick="makeBarcode()">СОЗДАТЬ ШТРИХ-КОД</button>
-        </div>
-        
-        <!-- QR-КОД -->
-        <div id="qrSection" style="display: none;">
-            <div class="input-group">
-                <label>Текст или ссылка:</label>
-                <input type="text" id="qrText" value="https://google.com" placeholder="Введите текст">
-            </div>
-            <div class="input-group">
-                <label>Размер:</label>
-                <input type="number" id="qrSize" value="250" min="100" max="500">
-            </div>
-            <button onclick="makeQR()">СОЗДАТЬ QR-КОД</button>
+            <button onclick="generateOffline()">Создать код</button>
         </div>
         
         <!-- РЕЗУЛЬТАТ -->
         <div class="result" id="result">
-            <div id="barcodeResult"></div>
-            <div id="qrResult"></div>
-            <button class="download-btn" id="downloadBtn" onclick="downloadCode()" style="display: none;">
-                💾 СКАЧАТЬ
-            </button>
+            <div id="codeContainer"></div>
+            <button class="download-btn" id="downloadBtn" onclick="downloadCode()" style="display: none;">💾 Скачать</button>
+        </div>
+        
+        <div class="footer">
+            ✅ Работает без интернета
         </div>
     </div>
 
     <script>
-        // ПРОСТЕЙШАЯ НАСТРОЙКА UPPUP - МГНОВЕННОЕ КЭШИРОВАНИЕ
+        // ПЕРЕМЕННЫЕ
+        let currentType = 'barcode';
+        let currentImageData = null;
+        let isOffline = false;
+        
+        // НАСТРОЙКА UPUP - ДВЕ ВЕРСИИ: ДЛЯ ОНЛАЙН И ОФЛАЙН
         if ('serviceWorker' in navigator) {
+            // Сохраняем обе версии
+            const onlineHTML = document.documentElement.outerHTML;
+            
+            // Упрощенная версия для офлайн
+            const offlineHTML = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR и штрих-коды (офлайн)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2c3e50;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .offline-container {
+            max-width: 400px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+        }
+        h2 {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        canvas {
+            max-width: 100%;
+            background: white;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="offline-container">
+        <h2>📴 ОФЛАЙН РЕЖИМ</h2>
+        <input type="text" id="offlineInput" value="12345678" placeholder="Введите текст">
+        <select id="offlineSelect">
+            <option value="barcode">Штрих-код</option>
+            <option value="qr">QR-код</option>
+        </select>
+        <button onclick="generateOfflineCode()">Создать код</button>
+        <div class="result" id="offlineResult"></div>
+        <button id="offlineDownload" style="display:none;" onclick="downloadOffline()">💾 Скачать</button>
+    </div>
+
+    <script>
+        let offlineImage = null;
+        
+        function generateOfflineCode() {
+            const text = document.getElementById('offlineInput').value;
+            const type = document.getElementById('offlineSelect').value;
+            
+            if (!text) {
+                alert('Введите текст!');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('offlineResult');
+            resultDiv.innerHTML = '';
+            
+            if (type === 'barcode') {
+                const canvas = document.createElement('canvas');
+                canvas.id = 'offlineCanvas';
+                resultDiv.appendChild(canvas);
+                
+                JsBarcode('#offlineCanvas', text, {
+                    format: 'CODE128',
+                    width: 2,
+                    height: 80,
+                    displayValue: true
+                });
+                
+                offlineImage = canvas.toDataURL('image/png');
+            } else {
+                const canvas = document.createElement('canvas');
+                canvas.id = 'offlineCanvas';
+                resultDiv.appendChild(canvas);
+                
+                QRCode.toCanvas(canvas, text, { width: 200 }, function(err) {
+                    if (!err) {
+                        offlineImage = canvas.toDataURL('image/png');
+                    }
+                });
+            }
+            
+            document.getElementById('offlineDownload').style.display = 'block';
+        }
+        
+        function downloadOffline() {
+            if (!offlineImage) return;
+            const link = document.createElement('a');
+            link.download = 'code.png';
+            link.href = offlineImage;
+            link.click();
+        }
+    </script>
+</body>
+</html>`;
+            
+            // Запускаем UpUp с двумя версиями
             UpUp.start({
-                'content': document.documentElement.outerHTML, // КЭШИРУЕМ СРАЗУ ВСЮ СТРАНИЦУ
+                'content': onlineHTML,           // Полная версия для онлайн
+                'offline-content': offlineHTML,   // Упрощенная для офлайн
                 'assets': [
                     'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js',
                     'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js'
                 ]
             });
         }
-
-        // ПЕРЕМЕННЫЕ
-        let currentType = 'barcode';
-        let currentImageData = null;
         
-        // ПРОВЕРКА ИНТЕРНЕТА
-        function checkOnline() {
-            if (!navigator.onLine) {
-                document.getElementById('offlineBadge').style.display = 'block';
-                document.getElementById('status').innerHTML = '✅ РАБОТАЕТ ОФЛАЙН!';
+        // ПРОВЕРКА СТАТУСА
+        function checkConnection() {
+            if (navigator.onLine) {
+                // Есть интернет - показываем полную версию
+                isOffline = false;
+                document.getElementById('onlineBanner').style.display = 'block';
+                document.getElementById('offlineBanner').style.display = 'none';
+                document.getElementById('onlineVersion').style.display = 'block';
+                document.getElementById('offlineVersion').style.display = 'none';
             } else {
-                document.getElementById('status').innerHTML = '🌐 Есть интернет - кэшируем...';
-                setTimeout(() => {
-                    document.getElementById('status').innerHTML = '✅ Можно отключать интернет';
-                }, 2000);
+                // Нет интернета - показываем упрощенную
+                isOffline = true;
+                document.getElementById('onlineBanner').style.display = 'none';
+                document.getElementById('offlineBanner').style.display = 'block';
+                document.getElementById('onlineVersion').style.display = 'none';
+                document.getElementById('offlineVersion').style.display = 'block';
+                
+                // Очищаем результат
+                document.getElementById('codeContainer').innerHTML = '';
+                document.getElementById('downloadBtn').style.display = 'none';
             }
         }
         
-        // ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
-        function showTab(type) {
-            currentType = type;
+        // ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК (для онлайн версии)
+        function switchTab(tab) {
+            if (isOffline) return;
+            
+            currentType = tab;
             
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             
-            if (type === 'barcode') {
+            if (tab === 'barcode') {
                 document.getElementById('barcodeSection').style.display = 'block';
                 document.getElementById('qrSection').style.display = 'none';
             } else {
@@ -221,8 +394,8 @@
             document.getElementById('downloadBtn').style.display = 'none';
         }
         
-        // СОЗДАТЬ ШТРИХ-КОД
-        function makeBarcode() {
+        // ГЕНЕРАЦИЯ ШТРИХ-КОДА (онлайн)
+        function generateBarcode() {
             const text = document.getElementById('barcodeText').value;
             const format = document.getElementById('barcodeFormat').value;
             
@@ -231,11 +404,10 @@
                 return;
             }
             
-            document.getElementById('barcodeResult').innerHTML = '<canvas id="barcodeCanvas"></canvas>';
-            document.getElementById('qrResult').innerHTML = '';
+            document.getElementById('codeContainer').innerHTML = '<canvas id="codeCanvas"></canvas>';
             
             try {
-                JsBarcode('#barcodeCanvas', text, {
+                JsBarcode('#codeCanvas', text, {
                     format: format,
                     width: 2,
                     height: 80,
@@ -243,7 +415,7 @@
                     fontSize: 16
                 });
                 
-                currentImageData = document.getElementById('barcodeCanvas').toDataURL('image/png');
+                currentImageData = document.getElementById('codeCanvas').toDataURL('image/png');
                 document.getElementById('downloadBtn').style.display = 'block';
                 
             } catch(e) {
@@ -251,8 +423,8 @@
             }
         }
         
-        // СОЗДАТЬ QR-КОД
-        function makeQR() {
+        // ГЕНЕРАЦИЯ QR-КОДА (онлайн)
+        function generateQR() {
             const text = document.getElementById('qrText').value;
             const size = parseInt(document.getElementById('qrSize').value);
             
@@ -261,20 +433,59 @@
                 return;
             }
             
-            document.getElementById('qrResult').innerHTML = '<canvas id="qrCanvas"></canvas>';
-            document.getElementById('barcodeResult').innerHTML = '';
+            document.getElementById('codeContainer').innerHTML = '<canvas id="codeCanvas"></canvas>';
             
-            QRCode.toCanvas(document.getElementById('qrCanvas'), text, {
+            QRCode.toCanvas(document.getElementById('codeCanvas'), text, {
                 width: size,
                 margin: 1
             }, function(err) {
                 if (err) {
                     alert('Ошибка: ' + err);
                 } else {
-                    currentImageData = document.getElementById('qrCanvas').toDataURL('image/png');
+                    currentImageData = document.getElementById('codeCanvas').toDataURL('image/png');
                     document.getElementById('downloadBtn').style.display = 'block';
                 }
             });
+        }
+        
+        // ГЕНЕРАЦИЯ В ОФЛАЙН РЕЖИМЕ (упрощенная)
+        function generateOffline() {
+            const text = document.getElementById('offlineText').value;
+            const type = document.getElementById('offlineType').value;
+            
+            if (!text) {
+                alert('Введите текст!');
+                return;
+            }
+            
+            document.getElementById('codeContainer').innerHTML = '<canvas id="offlineCanvas"></canvas>';
+            
+            if (type === 'barcode') {
+                try {
+                    JsBarcode('#offlineCanvas', text, {
+                        format: 'CODE128',
+                        width: 2,
+                        height: 80,
+                        displayValue: true
+                    });
+                    
+                    currentImageData = document.getElementById('offlineCanvas').toDataURL('image/png');
+                    document.getElementById('downloadBtn').style.display = 'block';
+                    
+                } catch(e) {
+                    alert('Ошибка: ' + e.message);
+                }
+            } else {
+                QRCode.toCanvas(document.getElementById('offlineCanvas'), text, {
+                    width: 200,
+                    margin: 1
+                }, function(err) {
+                    if (!err) {
+                        currentImageData = document.getElementById('offlineCanvas').toDataURL('image/png');
+                        document.getElementById('downloadBtn').style.display = 'block';
+                    }
+                });
+            }
         }
         
         // СКАЧАТЬ
@@ -282,19 +493,26 @@
             if (!currentImageData) return;
             
             const link = document.createElement('a');
-            link.download = currentType === 'barcode' ? 'barcode.png' : 'qrcode.png';
+            link.download = 'code.png';
             link.href = currentImageData;
             link.click();
         }
         
         // ЗАПУСК
         window.onload = function() {
-            checkOnline();
-            setTimeout(makeBarcode, 100); // Сразу показываем пример
+            checkConnection();
             
-            // МГНОВЕННОЕ ОБНОВЛЕНИЕ СТАТУСА
-            window.addEventListener('online', checkOnline);
-            window.addEventListener('offline', checkOnline);
+            window.addEventListener('online', checkConnection);
+            window.addEventListener('offline', checkConnection);
+            
+            // Генерируем пример
+            setTimeout(() => {
+                if (navigator.onLine) {
+                    generateBarcode();
+                } else {
+                    generateOffline();
+                }
+            }, 500);
         };
     </script>
 </body>
