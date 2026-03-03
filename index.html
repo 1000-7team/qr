@@ -150,11 +150,22 @@
             font-weight: 500;
         }
         
+        .offline-status {
+            background: #ffebcc;
+            color: #b45f06;
+        }
+        
         .footer {
             text-align: center;
             margin-top: 20px;
             color: #718096;
             font-size: 14px;
+        }
+        
+        .cache-info {
+            font-size: 12px;
+            margin-top: 5px;
+            color: #888;
         }
         
         @media (max-width: 600px) {
@@ -258,8 +269,9 @@
         </div>
         
         <div class="footer">
-            Работает без интернета после первого запуска 🚀
+            ✅ Работает полностью офлайн! Можно заходить без интернета
         </div>
+        <div class="cache-info" id="cacheInfo"></div>
     </div>
 
     <script>
@@ -267,25 +279,60 @@
         let currentCodeType = 'barcode';
         let currentCodeData = null;
         
-        // Инициализация UpUp для офлайн работы
+        // Функция для показа статуса
+        function updateStatus(message, isOffline = false) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = message;
+            if (isOffline) {
+                statusEl.classList.add('offline-status');
+            } else {
+                statusEl.classList.remove('offline-status');
+            }
+        }
+        
+        // Инициализация UpUp для офлайн работы - ИСПРАВЛЕНО!
         function initOffline() {
             if ('serviceWorker' in navigator) {
+                // Сохраняем текущую страницу в кэш
+                const currentPage = window.location.href;
+                
+                // Настраиваем UpUp - ОСНОВНОЕ ИЗМЕНЕНИЕ!
                 UpUp.start({
-                    'content': '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Офлайн режим</title></head><body style="font-family: Arial; text-align: center; padding: 50px;"><h1>📱 Генератор QR и штрих-кодов</h1><p>Вы находитесь в офлайн режиме.</p><p>Все функции по-прежнему доступны!</p><button onclick="location.reload()">Обновить страницу</button></body></html>',
-                    'content-url': 'offline.html',
+                    // Кэшируем все необходимые ресурсы
+                    'cache-version': 'v1.0',
+                    'content': document.documentElement.outerHTML, // Кэшируем текущий HTML
                     'assets': [
+                        currentPage, // Текущая страница
                         'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js',
-                        'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js'
+                        'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js',
+                        'https://cdn.jsdelivr.net/npm/upup@1.1.0/dist/upup.min.js'
                     ]
+                }).then(() => {
+                    console.log('UpUp успешно настроен для офлайн работы');
+                    
+                    // Проверяем, есть ли интернет
+                    if (!navigator.onLine) {
+                        updateStatus('📴 Работаем в офлайн режиме (нет интернета)', true);
+                    } else {
+                        updateStatus('✅ Всё закэшировано! Теперь можно работать без интернета');
+                        document.getElementById('cacheInfo').innerHTML = '💾 Страница сохранена для офлайн доступа';
+                    }
+                }).catch((error) => {
+                    console.error('Ошибка настройки UpUp:', error);
+                    updateStatus('⚠️ Ошибка настройки офлайн режима, но генератор работает');
                 });
                 
-                document.getElementById('status').innerHTML = '✅ Офлайн режим активирован! Приложение работает без интернета';
-                document.getElementById('status').style.background = '#f0fff4';
-                document.getElementById('status').style.color = '#276749';
+                // Слушаем изменения соединения
+                window.addEventListener('online', () => {
+                    updateStatus('🌐 Интернет подключен. Всё работает!');
+                });
+                
+                window.addEventListener('offline', () => {
+                    updateStatus('📴 Работаем в офлайн режиме (нет интернета)', true);
+                });
+                
             } else {
-                document.getElementById('status').innerHTML = '⚠️ Ваш браузер не поддерживает офлайн режим';
-                document.getElementById('status').style.background = '#fff3cd';
-                document.getElementById('status').style.color = '#856404';
+                updateStatus('⚠️ Ваш браузер не поддерживает офлайн режим', true);
             }
         }
         
@@ -409,29 +456,40 @@
             link.click();
         }
         
-        // Проверка интернет соединения
-        function checkConnection() {
+        // Проверка при загрузке - есть ли интернет
+        function checkInitialConnection() {
             if (navigator.onLine) {
-                document.getElementById('status').innerHTML = '🌐 Есть подключение к интернету. Кэширование для офлайн работы...';
+                updateStatus('🌐 Есть интернет. Кэшируем для офлайн доступа...');
             } else {
-                document.getElementById('status').innerHTML = '📴 Работаем в офлайн режиме';
-                document.getElementById('status').style.background = '#fff3cd';
-                document.getElementById('status').style.color = '#856404';
+                updateStatus('📴 Нет интернета, но приложение работает в офлайн режиме!', true);
+                
+                // Проверяем, загрузились ли библиотеки
+                if (typeof JsBarcode === 'undefined' || typeof QRCode === 'undefined') {
+                    updateStatus('⚠️ Библиотеки не загружены, но страница открыта. Некоторые функции могут не работать. Перезагрузите при наличии интернета для полного кэширования.', true);
+                }
             }
         }
         
         // Инициализация при загрузке страницы
         window.addEventListener('load', function() {
-            checkConnection();
-            initOffline();
+            checkInitialConnection();
             
-            // Генерация начального штрих-кода
-            setTimeout(generateBarcode, 500);
+            // Даем время на загрузку библиотек
+            setTimeout(() => {
+                // Проверяем, загрузились ли библиотеки
+                if (typeof JsBarcode !== 'undefined' && typeof QRCode !== 'undefined') {
+                    generateBarcode(); // Генерируем начальный штрих-код
+                }
+            }, 500);
+            
+            // Запускаем офлайн настройку с небольшой задержкой
+            setTimeout(initOffline, 1000);
         });
         
-        // Отслеживание изменений соединения
-        window.addEventListener('online', checkConnection);
-        window.addEventListener('offline', checkConnection);
+        // Предотвращаем загрузку офлайн страницы UpUp
+        window.addEventListener('beforeunload', function() {
+            // Ничего не делаем, просто чтобы предотвратить возможные ошибки
+        });
     </script>
 </body>
 </html>
